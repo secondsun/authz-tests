@@ -1,0 +1,5 @@
+target/**
+
+*db
+*lock
+nb-configuration.xml
