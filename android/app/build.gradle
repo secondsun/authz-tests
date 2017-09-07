@@ -28,7 +28,7 @@ dependencies {
     compile 'com.android.support:appcompat-v7:26.+'
     compile 'com.android.support.constraint:constraint-layout:1.0.2'
     testCompile 'junit:junit:4.12'
-    compile 'org.jboss.aerogear:aerogear-android-authz:3.1.1'
+    compile 'org.jboss.aerogear:aerogear-android-authz:3.1.2'
     compile 'org.jboss.aerogear:aerogear-android-pipe:3.2.0'
     compile "android.arch.lifecycle:runtime:1.0.0-alpha3"
     compile "android.arch.lifecycle:extensions:1.0.0-alpha3"

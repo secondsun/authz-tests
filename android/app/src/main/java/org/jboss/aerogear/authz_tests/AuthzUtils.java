@@ -1,6 +1,11 @@
 package org.jboss.aerogear.authz_tests;
 
+import android.accounts.Account;
+import android.accounts.AccountManager;
 import android.app.Activity;
+import android.os.AsyncTask;
+import android.os.Bundle;
+import android.widget.Toast;
 
 import org.jboss.aerogear.android.authorization.AuthorizationManager;
 import org.jboss.aerogear.android.authorization.AuthzModule;
@@ -8,9 +13,15 @@ import org.jboss.aerogear.android.authorization.oauth2.OAuth2AuthorizationConfig
 import org.jboss.aerogear.android.authorization.oauth2.OAuthWebViewDialog;
 import org.jboss.aerogear.android.core.Callback;
 import org.jboss.aerogear.android.pipe.PipeManager;
+import org.jboss.aerogear.android.pipe.http.HeaderAndBody;
+import org.jboss.aerogear.android.pipe.http.HttpException;
+import org.jboss.aerogear.android.pipe.http.HttpRestProvider;
+import org.jboss.aerogear.android.pipe.module.ModuleFields;
+import org.jboss.aerogear.android.pipe.module.PipeModule;
 import org.jboss.aerogear.android.pipe.rest.RestfulPipeConfiguration;
 import org.jboss.aerogear.android.pipe.rest.gson.GsonResponseParser;
 
+import java.net.URI;
 import java.net.URL;
 
 /**
@@ -29,6 +40,8 @@ public final class AuthzUtils {
     private static final String AUTHZ_REDIRECT_URL = "http://oauth2callback";
     private static final String MODULE_NAME = "KeyCloakAuthz";
 
+    private static String bearerToken = "" ;
+
     private AuthzUtils() {
 
     }
@@ -46,7 +59,20 @@ public final class AuthzUtils {
                     //.setWithIntent(true)
                     .asModule();
 
-            PipeManager.config("kc-strings", RestfulPipeConfiguration.class).module(AuthorizationManager.getModule(MODULE_NAME))
+            PipeManager.config("kc-strings", RestfulPipeConfiguration.class)
+                    .module(new PipeModule() {
+                        @Override
+                        public ModuleFields loadModule(URI relativeURI, String httpMethod, byte[] requestBody) {
+                            ModuleFields fields = new ModuleFields();
+                            fields.addHeader("Authorization", "Bearer " + bearerToken);
+                            return fields;
+                        }
+
+                        @Override
+                        public boolean handleError(HttpException exception) {
+                            return false;
+                        }
+                    })
                     .withUrl(new URL(STRING_SERVER_URL + "/secure/string"))
                     .responseParser(new GsonResponseParser(StringWrapper.GSON))
                     .forClass(StringWrapper.class);
@@ -58,23 +84,16 @@ public final class AuthzUtils {
 
     public static void connect(final Activity activity, final Callback callback) {
         try {
-            final AuthzModule authzModule = AuthorizationManager.getModule(MODULE_NAME);
+            final AccountManager am = AccountManager.get(activity);
+            final Account[] accounts = am.getAccountsByType("org.keycloak.Account");
 
-            authzModule.requestAccess(activity, new Callback<String>() {
-                @SuppressWarnings("unchecked")
-                @Override
-                public void onSuccess(String s) {
-                    callback.onSuccess(s);
-                }
+            if (accounts.length == 0) {
+                am.addAccount("org.keycloak.Account", "org.keycloak.Account.token", null, null, activity, null, null);
+            } else {
 
-                @Override
-                public void onFailure(Exception e) {
-                    if (!e.getMessage().matches(OAuthWebViewDialog.OAuthReceiver.DISMISS_ERROR)) {
-                        authzModule.deleteAccount();
-                    }
-                    callback.onFailure(e);
-                }
-            });
+                Account account = accounts[0];
+                fetchAccountInfo(activity, account, callback);
+            }
 
 
         } catch (Exception e) {
@@ -82,6 +101,50 @@ public final class AuthzUtils {
             throw new RuntimeException(e);
         }
     }
+
+    private static void fetchAccountInfo(final Activity activity, final Account account, final Callback callback) {
+
+        final AccountManager am = AccountManager.get(activity);
+
+        new AsyncTask<Void, Void, String>() {
+            @Override
+            protected String doInBackground(Void... voids) {
+
+                URL accountUrl = null;
+                try {
+                    accountUrl = new URL("http://10.0.2.2:8080/auth/realms/authz_demo/account");
+
+                    Bundle result = am.getAuthToken(account, "org.keycloak.Account.token", null, null, null, null).getResult();
+                    if (result.containsKey(AccountManager.KEY_ERROR_MESSAGE)) {
+                        throw new RuntimeException("Herf derf");
+                    } else {
+                        String token = result.getString(AccountManager.KEY_AUTHTOKEN);
+                        if (token == null) {
+                            am.addAccount("org.keycloak.Account", "org.keycloak.Account.token", null, null, activity, null, null);
+                        } else {
+                            bearerToken = token;
+                            callback.onSuccess(bearerToken);
+                        }
+
+                    }
+
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    throw new RuntimeException(e);
+                }
+
+                return bearerToken;
+
+            }
+
+            @Override
+            protected void onPostExecute(String s) {
+                super.onPostExecute(s);
+
+            }
+        }.execute((Void[]) null);
+    }
+
 
     @SuppressWarnings("unchecked")
     public static void upload(final String string, final Callback<StringWrapper> callback, Activity activity) {

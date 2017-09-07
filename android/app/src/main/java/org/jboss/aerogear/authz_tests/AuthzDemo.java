@@ -1,12 +1,19 @@
 package org.jboss.aerogear.authz_tests;
 
+import android.accounts.Account;
+import android.accounts.AccountManager;
+import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.widget.Toast;
 
 import org.jboss.aerogear.android.core.Callback;
 import org.jboss.aerogear.android.pipe.PipeManager;
+import org.jboss.aerogear.android.pipe.http.HeaderAndBody;
+import org.jboss.aerogear.android.pipe.http.HttpRestProvider;
 
+import java.net.URL;
 import java.util.List;
 
 public class AuthzDemo extends AppCompatActivity {
@@ -30,6 +37,7 @@ public class AuthzDemo extends AppCompatActivity {
                             @Override
                             public void onSuccess(Object data) {
                                 Log.i("Data", data.toString());
+                                Toast.makeText(AuthzDemo.this, "Success, response from server : " +data.toString(), Toast.LENGTH_LONG).show();
                             }
 
                             @Override
@@ -39,8 +47,10 @@ public class AuthzDemo extends AppCompatActivity {
                         });
                         if (data.size() > 0) {
                             Log.i("Data", data.get(0).toString());
+                            Toast.makeText(AuthzDemo.this, "Success, response from server : " +data.toString(), Toast.LENGTH_LONG).show();
                         } else {
                             Log.i("Data", "Empty");
+                            Toast.makeText(AuthzDemo.this, "Success, Data empty", Toast.LENGTH_LONG).show();
                         }
                     }
 
@@ -61,4 +71,5 @@ public class AuthzDemo extends AppCompatActivity {
         //if logged in, show remove/add
         //else show login
     }
+
 }
